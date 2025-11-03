@@ -1,1 +1,56 @@
+"""
+LDA Topic Modeling for Audience Narrative Discovery
+Author: Ryan Gautreaux
+Affiliation: Georgia State University
+Dataset: carditweets.csv
+Purpose: Identify emergent audience discourse themes via Latent Dirichlet Allocation.
+"""
+
+# --- Libraries ---
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+
+# --------------------------------------------------------------------
+# 1. Load & Preprocess Data
+# --------------------------------------------------------------------
+df = pd.read_csv("carditweets.csv")
+
+# Detect text column (adjust if needed)
+text_col = "text" if "text" in df.columns else df.columns[0]
+
+def clean_text(text):
+    """Normalize text for LDA."""
+    if pd.isna(text):
+        return ""
+    text = re.sub(r"http\S+", "", text)       # remove URLs
+    text = re.sub(r"[^A-Za-z\s]", "", text)   # remove punctuation
+    text = text.lower().strip()
+    return text
+
+df["clean_text"] = df[text_col].apply(clean_text)
+
+# --------------------------------------------------------------------
+# 2. Topic Modeling (LDA)
+# --------------------------------------------------------------------
+# Vectorize text (bag-of-words)
+vectorizer = CountVectorizer(max_df=0.8, min_df=5, stop_words="english")
+X = vectorizer.fit_transform(df["clean_text"])
+
+# Fit LDA model
+lda = LatentDirichletAllocation(n_components=4, random_state=42)
+lda.fit(X)
+
+# Extract top terms per topic
+terms = vectorizer.get_feature_names_out()
+topic_terms = {
+    f"Topic {i+1}": [terms[j] for j in topic.argsort()[-10:]]
+    for i, topic in enumerate(lda.components_)
+}
+
+# Print results
+print("\n=== TOPIC MODEL (Audience Narratives) ===")
+for topic, words in topic_terms.items():
+    print(f"{topic}: {', '.join(words)}")
 
